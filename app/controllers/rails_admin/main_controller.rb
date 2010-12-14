@@ -53,6 +53,7 @@ module RailsAdmin
     def create
       @modified_assoc = []
       @object = @abstract_model.new
+      @model_config.create.fields.each {|f| f.parse_input(@attributes) if f.respond_to?(:parse_input) }
       @object.send :attributes=, @attributes, false
       @page_name = t("admin.actions.create").capitalize + " " + @model_config.create.label.downcase
       @page_type = @abstract_model.pretty_name.downcase
@@ -78,6 +79,7 @@ module RailsAdmin
 
       @old_object = @object.clone
 
+      @model_config.update.fields.each {|f| f.parse_input(@attributes) if f.respond_to?(:parse_input) }
       @object.send :attributes=, @attributes, false
       if @object.save && update_all_associations
         redirect_to_on_success

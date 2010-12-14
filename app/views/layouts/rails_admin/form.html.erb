@@ -10,30 +10,14 @@
   <%= javascript_include_tag('rails_admin/prototype-base-extensions.js') %>
   <%= javascript_include_tag('rails_admin/prototype-date-extensions.js') %>
   <%= javascript_include_tag('rails_admin/datepicker.js') %>
+  <%= javascript_include_tag('rails_admin/rails_admin-datepicker.js') %>
   <%= javascript_include_tag('rails_admin/associations.js') %>
   <%= stylesheet_link_tag('rails_admin/datepicker.css') %>
 
   <script type="text/javascript" language="javascript">
-  Control.DatePicker.Locale['en_US'] = {
-    dateTimeFormat: 'yyyy-MM-dd HH:mm',
-    dateFormat: 'yyyy-MM-dd'}
-
   document.observe("dom:loaded", function() {
-    $$(".dateField").each(function(elem){
-      new Control.DatePicker(elem, {icon: '/images/rails_admin/calendar.png'});
-    });
-    // .dateField, .timestampField, .timeField, .datetimeField
-    $$(".timestampField").each(function(elem){
-      new Control.DatePicker(elem, {icon: '/images/rails_admin/clock.png', timePicker: true, timePickerAdjacent: true});
-    });
-    $$(".timeField").each(function(elem){
-      new Control.DatePicker(elem, {icon: '/images/rails_admin/clock.png', timePicker: true, datePicker :false});
-    });
-    $$(".datetimeField").each(function(elem){
-      new Control.DatePicker(elem, {icon: '/images/rails_admin/calendar.png', timePicker: true, timePickerAdjacent: true});
-    });
+    <%= datepicker_language_definition %>
   });
-
   </script>
 
   <title><%= @page_name %></title>

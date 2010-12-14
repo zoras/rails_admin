@@ -201,5 +201,25 @@ module RailsAdmin
       return style, other
     end
 
+    def datepicker_language_definition
+      datetime_field = RailsAdmin::Config::Fields::Types::Datetime
+      language = {
+        I18n.locale => {
+          'days' => datetime_field.abbr_day_names,
+          'months' => datetime_field.month_names + datetime_field.abbr_month_names,
+          'strings' => {
+            'Now' => t('Now', :default => 'Now'),
+            'Today' => t('Today', :default => 'Today'),
+            'Time' => t('Time', :default => 'Time'),
+            'Exact minutes' => t('Exact minutes', :default => 'Exact minutes'),
+            'Select Date and Time' => t('Select Date and Time', :default => 'Select Date and Time'),
+            'Select Time' => t('Select Time', :default => 'Select Time'),
+            'Open calendar' => t('Open calendar', :default => 'Open calendar'),
+          }
+        }
+      }
+      output = "Control.DatePicker.Language = " << ActiveSupport::JSON.encode(language) << ';'
+      output.html_safe
+    end
   end
 end
