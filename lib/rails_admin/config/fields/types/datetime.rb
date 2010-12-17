@@ -24,15 +24,19 @@ module RailsAdmin
             attr_reader :datepicker_date_format_key, :datepicker_options, :format, :i18n_scope
 
             def abbr_day_names
-              I18n.t('date.abbr_day_names', :raise => true)
-            rescue I18n::ArgumentError
-              I18n.t('date.abbr_day_names', :locale => :en)
+              begin
+                I18n.t('date.abbr_day_names', :raise => true)
+              rescue I18n::ArgumentError
+                I18n.t('date.abbr_day_names', :locale => :en)
+              end
             end
 
             def abbr_month_names
-              names = I18n.t('date.abbr_month_names', :raise => true)
-            rescue I18n::ArgumentError
-              names = I18n.t('date.abbr_month_names', :locale => :en)
+              begin
+                names = I18n.t('date.abbr_month_names', :raise => true)
+              rescue I18n::ArgumentError
+                names = I18n.t('date.abbr_month_names', :locale => :en)
+              end
               names[1..-1]
             end
 
@@ -41,15 +45,19 @@ module RailsAdmin
             end
 
             def day_names
-              I18n.t('date.day_names', :raise => true)
-            rescue I18n::ArgumentError
-              I18n.t('date.day_names', :locale => :en)
+              begin
+                I18n.t('date.day_names', :raise => true)
+              rescue I18n::ArgumentError
+                I18n.t('date.day_names', :locale => :en)
+              end
             end
 
             def month_names
-              names = I18n.t('date.month_names', :raise => true)
-            rescue I18n::ArgumentError
-              names = I18n.t('date.month_names', :locale => :en)
+              begin
+                names = I18n.t('date.month_names', :raise => true)
+              rescue I18n::ArgumentError
+                names = I18n.t('date.month_names', :locale => :en)
+              end
               names[1..-1]
             end
 
@@ -91,7 +99,7 @@ module RailsAdmin
               'timePickerAdjacent' => true,
               'weekend' => [0,6],
             }
-            puts self.class.datepicker_options
+
             options = options.merge self.class.datepicker_options
 
             ActiveSupport::JSON.encode(options).html_safe

@@ -478,7 +478,7 @@ describe "RailsAdmin Config DSL List Section" do
           field :id
           field :name
           field :created_at do
-            strftime_format "%Y-%m-%d"
+            format "%Y-%m-%d"
           end
           field :updated_at
         end
