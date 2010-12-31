@@ -80,8 +80,8 @@
               <% end %>
               <% other_right = params.reject{|key, value| key == "set"}.merge(:set => params[:set].to_i + 1) %>
               <td class="other right"><%= link_to("...", other_right)%></td>
-              <td class="action edit"><%= link_to(t("admin.list.edit_action"), rails_admin_edit_path(:model_name => @abstract_model.to_param, :id => object.id)) %></td>
-              <td class="action delete"><%= link_to(t("admin.list.delete_action"), rails_admin_delete_path(:model_name => @abstract_model.to_param, :id => object.id)) %></td>
+              <td class="action edit"><%= link_to(t("admin.list.edit_action"), rails_admin_edit_path(:model_name => @abstract_model.to_param, :id => @abstract_model.get_id(object))) %></td>
+              <td class="action delete"><%= link_to(t("admin.list.delete_action"), rails_admin_delete_path(:model_name => @abstract_model.to_param, :id => @abstract_model.get_id(object))) %></td>
             </tr>
             <% end %>
           </tbody>

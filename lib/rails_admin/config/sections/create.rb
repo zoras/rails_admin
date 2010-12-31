@@ -1,11 +1,49 @@
-require "rails_admin/config/sections/update"
+require 'rails_admin/config/base'
+require 'rails_admin/config/hideable'
+require 'rails_admin/config/labelable'
+require 'rails_admin/config/has_fields'
+require 'rails_admin/config/has_groups'
 
 module RailsAdmin
   module Config
     module Sections
       # Configuration of the edit view for a new object
-      class Create < RailsAdmin::Config::Sections::Update
+      class Create < RailsAdmin::Config::Base
+        include RailsAdmin::Config::HasFields
+        include RailsAdmin::Config::HasGroups
+        include RailsAdmin::Config::Hideable
+        include RailsAdmin::Config::Labelable
+
+        # Default items per page value used if a model level option has not
+        # been configured
+        cattr_accessor :default_hidden_fields
+        @@default_hidden_fields = [:created_at, :created_on, :deleted_at, :updated_at, :updated_on, :deleted_on]
+
+        def initialize(parent)
+          super(parent)
+
+          # Populate @fields instance variable with model's properties
+          @groups = [ RailsAdmin::Config::Fields::Group.new(self, :default) ]
+          @groups.first.label = proc { I18n.translate("admin.new.basic_info") }
+
+          @fields = RailsAdmin::Config::Fields.factory(self)
+
+          @fields.each do |f|
+            if f.association? && f.type != :belongs_to_association
+              f.group = f.label.to_sym
+            else
+              f.group = :default
+            end
+            # Autoincrementing- and timestamp fields should be hidden
+            if f.serial? || @@default_hidden_fields.include?(f.name)
+              f.visible = false
+            end
+          end
+        end
       end
     end
   end
 end
+
+require 'rails_admin/config/fields'
+require 'rails_admin/config/fields/group'

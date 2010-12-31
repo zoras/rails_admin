@@ -4,9 +4,14 @@ require 'rails_admin/config/sections/list'
 module RailsAdmin
   module Adapters
     module ActiveRecord
-      def get(id)
-        model.find_by_id(id)
-      rescue ActiveRecord::RecordNotFound
+      def get(ids)
+        ids = [ids] unless ids.kind_of?(Array)
+        query = {}
+        primary_keys.each_with_index do |pk, i|
+          query[pk] = ids[i]
+        end
+        model.where(query).first
+      rescue ::ActiveRecord::RecordNotFound
         nil
       end
 
@@ -88,6 +93,17 @@ module RailsAdmin
         end
       end
 
+      # Get an array of object's primary keys' values
+      def get_id(object)
+        primary_keys.map{|pk| object.send(pk)}
+      end
+
+      # ActiveRecord doesn't report composite primary keys properly, so we'll
+      # query them via connection adapter's table_structure method
+      def primary_keys
+        @primary_keys ||= model.connection.send(:table_structure, model.table_name).select{|c| c["pk"] == 1}.map{|c| c["name"]}
+      end
+
       def properties
         model.columns.map do |property|
           {
@@ -97,6 +113,7 @@ module RailsAdmin
             :length => property.limit,
             :nullable? => property.null,
             :serial? => property.primary,
+            :primary? => !primary_keys.find{|pk| pk == property.name}.nil?
           }
         end
       end
@@ -108,7 +125,7 @@ module RailsAdmin
       private
 
       def merge_order(options)
-        @sort ||= options.delete(:sort) || "id"
+        @sort ||= options.delete(:sort) || primary_keys.first
         @sort_order ||= options.delete(:sort_reverse) ? "asc" : "desc"
         options.merge(:order => "#{@sort} #{@sort_order}")
       end

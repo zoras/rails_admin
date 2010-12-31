@@ -190,7 +190,7 @@ module RailsAdmin
     end
 
     def get_object
-      @object = @abstract_model.get(params[:id])
+      @object = @abstract_model.get(params[:id].split("/"))
       @model_config.bind(:object, @object)
       not_found unless @object
     end

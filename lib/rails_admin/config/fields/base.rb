@@ -93,6 +93,13 @@ module RailsAdmin
           type
         end
 
+        # Accessor for whether this field is part of a primary key index
+        #
+        # @see RailsAdmin::AbstractModel.properties
+        register_instance_option(:primary?) do
+          properties[:primary?]
+        end
+
         register_instance_option(:render) do
           bindings[:view].render :partial => partial.to_s, :locals => {:field => self}
         end
@@ -113,7 +120,7 @@ module RailsAdmin
           self.class.instance_variable_get("@searchable")
         end
 
-        # Accessor for whether this is a serial field (aka. primary key, identifier).
+        # Accessor for whether this field value is auto incremented by database
         #
         # @see RailsAdmin::AbstractModel.properties
         register_instance_option(:serial?) do
