@@ -11,7 +11,7 @@
   <%= javascript_include_tag('rails_admin/prototype-date-extensions.js') %>
   <%= javascript_include_tag('rails_admin/datepicker.js') %>
   <%= javascript_include_tag('rails_admin/associations.js') %>
-  <%= javascript_include_tag('ckeditor/ckeditor.js') %>
+  <%= javascript_include_tag('ckeditor/ckeditor.js') if File.exists?(File.join(Rails.root, 'public/javascripts/ckeditor/ckeditor.js')) %>
   <%= javascript_include_tag('rails_admin/dashboard.js') %>
   <%= stylesheet_link_tag('rails_admin/datepicker.css') %>
 
@@ -21,17 +21,16 @@
     dateFormat: 'yyyy-MM-dd'}
 
   document.observe("dom:loaded", function() {
-    $$(".dateField").each(function(elem){
+    $$(".field .date").each(function(elem){
       new Control.DatePicker(elem, {icon: '/images/rails_admin/calendar.png'});
     });
-    // .dateField, .timestampField, .timeField, .datetimeField
-    $$(".timestampField").each(function(elem){
+    $$(".field .timestamp").each(function(elem){
       new Control.DatePicker(elem, {icon: '/images/rails_admin/clock.png', timePicker: true, timePickerAdjacent: true});
     });
-    $$(".timeField").each(function(elem){
+    $$(".field .time").each(function(elem){
       new Control.DatePicker(elem, {icon: '/images/rails_admin/clock.png', timePicker: true, datePicker :false});
     });
-    $$(".datetimeField").each(function(elem){
+    $$(".field .datetime").each(function(elem){
       new Control.DatePicker(elem, {icon: '/images/rails_admin/calendar.png', timePicker: true, timePickerAdjacent: true});
     });
 
@@ -40,8 +39,8 @@
       next unless form_section.visible_fields.length > 0
       form_section.visible_fields.select { |field| field.respond_to?(:column_width) }.each do |field|
     %>
-    $("<%= "##{field.abstract_model.to_param}_#{field.name}" %>").style.width = "<%= field.column_width%>px";
-    <% 
+    $("<%= "#{field.abstract_model.to_param}_#{field.name}" %>").style.width = "<%= field.column_width%>px";
+    <%
       end
     end
     %>
@@ -49,7 +48,6 @@
 
   </script>
 
-  <title><%= @page_name %></title>
 </head>
 
 <body>
