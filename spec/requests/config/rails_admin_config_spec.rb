@@ -10,7 +10,7 @@ describe "RailsAdmin Config DSL" do
     end
 
     after(:all) do
-      RailsAdmin::Config.excluded_models = []
+      RailsAdmin::Config.excluded_models = [RelTest, CompositePrimaryKeyTest]
       RailsAdmin::AbstractModel.instance_variable_get("@models").clear
       RailsAdmin::Config.reset
     end
@@ -53,11 +53,11 @@ describe "RailsAdmin Config DSL" do
       end
     end
   end
-  
+
   describe "model store does not exist" do
     before(:each)  { drop_all_tables }
     after(:all)    { migrate_database }
-    
+
     it "should not raise an error when the model tables do not exists" do
       config_setup = lambda do
         RailsAdmin.config Team do
@@ -66,9 +66,9 @@ describe "RailsAdmin Config DSL" do
           end
         end
       end
-      
+
       config_setup.should_not raise_error
     end
   end
-  
+
 end
