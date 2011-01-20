@@ -90,27 +90,29 @@ module RailsAdmin
     end
 
     def destroy
-      @object = @object.destroy
+      @object = @abstract_model.delete(@object)
       flash[:notice] = t("admin.delete.flash_confirmation", :name => @model_config.list.label)
 
       check_history
 
       redirect_to rails_admin_list_path(:model_name => @abstract_model.to_param)
     end
-    
+
     def bulk_delete
       @page_name = t("admin.actions.delete").capitalize + " " + @model_config.list.label.downcase
       @page_type = @abstract_model.pretty_name.downcase
 
       render :layout => 'rails_admin/delete'
     end
-    
-    def bulk_destroy
-      @destroyed_objects = @abstract_model.destroy(params[:bulk_ids])
 
-      @destroyed_objects.each do |object|
-        message = "Destroyed #{@model_config.bind(:object, object).list.object_label}"
-        create_history_item(message, object, @abstract_model)
+    def bulk_destroy
+      @destroyed_objects = @abstract_model.destroy(@bulk_ids)
+
+      if @destroyed_objects.length > 0
+        @destroyed_objects.each do |object|
+          message = "Destroyed #{@model_config.bind(:object, object).list.object_label}"
+          create_history_item(message, object, @abstract_model)
+        end
       end
 
       redirect_to rails_admin_list_path(:model_name => @abstract_model.to_param)
@@ -213,9 +215,9 @@ module RailsAdmin
       @model_config.bind(:object, @object)
       not_found unless @object
     end
-    
+
     def get_bulk_objects
-      @bulk_ids = params[:bulk_ids]
+      @bulk_ids = params[:bulk_ids].map{|id| ActiveSupport::JSON.decode(id)}
       @bulk_objects = @abstract_model.get_bulk(@bulk_ids)
       not_found unless @bulk_objects
     end

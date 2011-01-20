@@ -5,19 +5,14 @@ module RailsAdmin
   module Adapters
     module ActiveRecord
       def get(ids)
-        ids = [ids] unless ids.kind_of?(Array)
-        query = {}
-        primary_keys.each_with_index do |pk, i|
-          query[pk] = ids[i]
-        end
-        model.where(query).first
+        model.where(ids_to_where_arg(ids)).first
       rescue ::ActiveRecord::RecordNotFound
         nil
       end
-      
+
       def get_bulk(ids)
-        model.find(ids)
-      rescue ActiveRecord::RecordNotFound
+        ids.map{|id| get(id) }
+      rescue ::ActiveRecord::RecordNotFound
         nil
       end
 
@@ -54,14 +49,23 @@ module RailsAdmin
       def new(params = {})
         model.new(params)
       end
-      
+
+      def delete(object)
+        if object.persisted?
+          ids = get_id(object)
+          model.unscoped.where(ids_to_where_arg(ids)).delete_all
+        end
+        object.instance_variable_set("@destroyed", true)
+        object.freeze
+      end
+
       def destroy(ids)
-        model.destroy(ids)
+        get_bulk(ids).map{|object| delete(object)}
       end
 
       def destroy_all!
         model.all.each do |object|
-          object.destroy
+          delete(object)
         end
       end
 
@@ -104,8 +108,9 @@ module RailsAdmin
       end
 
       # Get an array of object's primary keys' values
-      def get_id(object)
-        primary_keys.map{|pk| object.send(pk)}
+      def get_id(object, encode = false)
+        values = primary_keys.map{|pk| object.send(pk)}
+        encode ? values.to_json : values
       end
 
       # ActiveRecord doesn't report composite primary keys properly, so we'll
@@ -133,6 +138,15 @@ module RailsAdmin
       end
 
       private
+
+      def ids_to_where_arg(ids)
+        ids = [ids] unless ids.kind_of?(Array)
+        query = {}
+        primary_keys.each_with_index do |pk, i|
+          query[pk] = ids[i]
+        end
+        query
+      end
 
       def merge_order(options)
         @sort ||= options.delete(:sort) || primary_keys.first

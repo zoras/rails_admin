@@ -12,7 +12,7 @@ module RailsAdmin
           elsif bindings[:object].respond_to?(:title) && bindings[:object].title
             bindings[:object].title
           else
-            "#{bindings[:object].class.to_s} ##{bindings[:object].id}"
+            "#{bindings[:object].class.to_s} ##{abstract_model.get_id(bindings[:object]).join(', ')}"
           end
         end
       end
