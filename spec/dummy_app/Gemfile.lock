@@ -38,6 +38,7 @@ GEM
     arel (2.0.7)
     bcrypt-ruby (2.1.4)
     bcrypt-ruby (2.1.4-java)
+    bson (1.1.5)
     builder (2.1.2)
     devise (1.1.5)
       bcrypt-ruby (~> 2.1.2)
@@ -52,6 +53,13 @@ GEM
       mime-types (~> 1.16)
       treetop (~> 1.4.8)
     mime-types (1.16)
+    mongo (1.1.5)
+      bson (>= 1.1.5)
+    mongoid (2.0.0.beta.20)
+      activemodel (~> 3.0)
+      mongo (~> 1.1)
+      tzinfo (~> 0.3.22)
+      will_paginate (~> 3.0.pre)
     nokogiri (1.4.4)
     paperclip (2.3.8)
       activerecord
@@ -100,6 +108,7 @@ GEM
       nokogiri (>= 1.2.0)
       rack (>= 1.0)
       rack-test (>= 0.5.3)
+    will_paginate (3.0.pre2)
 
 PLATFORMS
   java
@@ -107,6 +116,7 @@ PLATFORMS
 
 DEPENDENCIES
   devise (~> 1.1)
+  mongoid
   paperclip (~> 2.3)
   rails (~> 3.0.3)
   rails_admin!

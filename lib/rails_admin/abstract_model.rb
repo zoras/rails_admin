@@ -16,7 +16,7 @@ module RailsAdmin
         filenames = Dir.glob(Rails.application.paths.app.models.collect { |path| File.join(path, "**/*.rb") })
         class_names = []
         filenames.each do |filename|
-          class_names += File.read(filename).scan(/class ([\w\d_\-:]+)/).flatten
+          class_names += File.read(filename).scan(/class ([\w\d_\-:]+)/).flatten.map(&:to_sym)
         end
         possible_models = Module.constants | class_names
         #Rails.logger.info "possible_models: #{possible_models.inspect}"
@@ -38,42 +38,55 @@ module RailsAdmin
     end
 
     def self.add_model(model_name)
-      model = lookup(model_name,false)
+      model,orm_adapter = *lookup(model_name,false)
       @models << new(model) if model
+    end
+    
+    def self.orm_adapters
+      @orm_adapters if @orm_adapters
+      @orm_adapters = []
+      if defined?(ActiveRecord)
+        require 'rails_admin/adapters/active_record'
+        @orm_adapters << RailsAdmin::Adapters::ActiveRecord
+      end
+      if defined?(Mongoid)
+        require 'rails_admin/adapters/mongoid'
+        @orm_adapters << RailsAdmin::Adapters::Mongoid
+      end
     end
 
     # Given a string +model_name+, finds the corresponding model class
-    def self.lookup(model_name,raise_error=true)
-      begin
-        model = model_name.constantize
-      rescue NameError
-        #Rails.logger.info "#{model_name} wasn't a model"
-        raise "RailsAdmin could not find model #{model_name}" if raise_error
-        return nil
+    def self.lookup(model,raise_error=true)
+      unless model.is_a?(Class)
+        begin
+          model = model.to_s.camelize.constantize
+        rescue NameError
+          #Rails.logger.info "#{model_name} wasn't a model"
+          raise "RailsAdmin could not find model #{model_name}" if raise_error
+          return [nil,nil]
+        end
+      end
+      
+      adapter = orm_adapters.select {|one| one.can_handle_model(model)}.first
+      
+      if adapter
+        [model,adapter]
+      else
+        [nil,nil]
       end
 
-      if model.is_a?(Class) && superclasses(model).include?(ActiveRecord::Base)
-        #Rails.logger.info "#{model_name} is a model"
-        model
-      else
-        #Rails.logger.info "#{model_name} is NOT a model"
-        nil
-      end
     end
 
     attr_accessor :model
 
     def initialize(model)
-      model = self.class.lookup(model.to_s.camelize) unless model.is_a?(Class)
+      model,orm_adapter = *self.class.lookup(model)
       @model = model
-      self.extend(GenericSupport)
-      ### TODO more ORMs support
-      require 'rails_admin/adapters/active_record'
-      self.extend(RailsAdmin::Adapters::ActiveRecord)
-    end
-
+      self.extend(GenericSupport) 
+      self.extend(orm_adapter) if orm_adapter
+    end 
+    
     private
-
     def self.superclasses(klass)
       superclasses = []
       while klass
@@ -82,5 +95,7 @@ module RailsAdmin
       end
       superclasses
     end
+    
+
   end
 end

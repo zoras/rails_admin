@@ -1,30 +1,31 @@
-require 'active_record'
+require 'mongoid'
 require 'rails_admin/config/sections/list'
 require 'rails_admin/abstract_object'
 
 module RailsAdmin
   module Adapters
-    module ActiveRecord
-
+    module Mongoid
       def self.can_handle_model(model)
-        model.is_a?(Class) && self.superclasses(model).include?(::ActiveRecord::Base)
+        return false unless model.is_a?(Class)
+
+        # calling colletion on an embedded collection just bombs, be a bit more verbose to avoid exception
+        is_embedded = model.respond_to?(:embedded) && model.embedded?
+        return false if is_embedded
+
+        # check if it's backed by a Mongoid collection
+        model.respond_to?(:collection) && model.collection.is_a?(::Mongoid::Collection)
       end
 
       def get(id)
-        if object = model.find_by_id(id)
+        if object = model.where(:id=>BSON::ObjectId(id))
           RailsAdmin::AbstractObject.new object
         else
           nil
         end
-      # TODO: ActiveRecord::Base.find_by_id will never raise RecordNotFound, will it?
-      rescue ActiveRecord::RecordNotFound
-        nil
       end
 
       def get_bulk(ids)
         model.find(ids)
-      rescue ActiveRecord::RecordNotFound
-        nil
       end
 
       def count(options = {})
@@ -36,21 +37,26 @@ module RailsAdmin
       end
 
       def all(options = {})
-        model.all(merge_order(options))
+        Array(model.where(merge_order(options)))
       end
 
       def paginated(options = {})
         page = options.delete(:page) || 1
         per_page = options.delete(:per_page) || RailsAdmin::Config::Sections::List.default_items_per_page
+        sort = options.delete(:sort)
+        sort_reverse = options.delete(:sort_reverse)
 
         page_count = (count(options).to_f / per_page).ceil
 
-        options.merge!({
-          :limit => per_page,
-          :offset => (page - 1) * per_page
-        })
+        condition = if sort_reverse
+          model.where(options).desc(sort)
+        else
+          model.where(options).asc(sort)
+        end
 
-        [page_count, all(options)]
+        found = [page_count, Array(condition.limit(per_page).offset((page-1)*per_page))]
+        puts "paginated (#{options.inspect}) => #{found.inspect}"
+        found
       end
 
       def create(params = {})
@@ -95,35 +101,60 @@ module RailsAdmin
         end
       end
 
+      def model_name
+        "todo"
+      end
+
       def associations
-        model.reflect_on_all_associations.select { |association| not association.options[:polymorphic] }.map do |association|
-          {
-            :name => association.name,
-            :pretty_name => association.name.to_s.gsub('_', ' ').capitalize,
-            :type => association.macro,
-            :parent_model => association_parent_model_lookup(association),
-            :parent_key => association_parent_key_lookup(association),
-            :child_model => association_child_model_lookup(association),
-            :child_key => association_child_key_lookup(association),
-          }
+        if true
+          []
+        else
+          model.reflect_on_all_associations.select { |association| not association.options[:polymorphic] }.map do |association|
+            {
+              :name => association.name,
+              :pretty_name => association.name.to_s.gsub('_', ' ').capitalize,
+              :type => association.macro,
+              :parent_model => association_parent_model_lookup(association),
+              :parent_key => association_parent_key_lookup(association),
+              :child_model => association_child_model_lookup(association),
+              :child_key => association_child_key_lookup(association),
+            }
+          end
         end
       end
 
       def properties
-        model.columns.map do |property|
+        model.fields.map do |name,field|
+         ar_type =  case field.type.to_s
+            when "String"
+              :string
+            when "Integer"
+              :integer
+            when "Time"
+              :datetime
+            when "Float"
+              :float
+            else
+              # this will likely bomb, will fix as it does
+              field.type
+            end
+
           {
-            :name => property.name.to_sym,
-            :pretty_name => property.name.to_s.gsub('_', ' ').capitalize,
-            :type => property.type,
-            :length => property.limit,
-            :nullable? => property.null,
-            :serial? => property.primary,
+            :name => field.name.to_sym,
+            :pretty_name => field.name.to_s.gsub('_', ' ').capitalize,
+            :type => ar_type,
+            :length => 100,
+            :nullable? => true,
+            :serial? => false,
           }
         end
       end
 
       def model_store_exists?
-        model.table_exists?
+        # Collections are created on demand, so they always 'exist'.
+        # If need to know if pre-exist we can do something like
+        #     model.db.collection_names.include?(model.collection.name)
+        true
       end
 
       private
@@ -135,6 +166,7 @@ module RailsAdmin
       end
 
       def association_parent_model_lookup(association)
+        puts "association_parent_model_lookup(#{association})"
         case association.macro
         when :belongs_to
           association.klass
@@ -150,6 +182,7 @@ module RailsAdmin
       end
 
       def association_child_model_lookup(association)
+        puts "association_child_model_lookup(#{association})"
         case association.macro
         when :belongs_to
           association.active_record
@@ -161,6 +194,7 @@ module RailsAdmin
       end
 
       def association_child_key_lookup(association)
+        puts "association_child_key_lookup(#{association})"
         case association.macro
         when :belongs_to
           [association.options[:foreign_key] || "#{association.name}_id".to_sym]
@@ -170,16 +204,6 @@ module RailsAdmin
           raise "Unknown association type: #{association.macro.inspect}"
         end
       end
-
-      def self.superclasses(klass)
-        superclasses = []
-        while klass
-          superclasses << klass.superclass if klass && klass.superclass
-          klass = klass.superclass
-        end
-        superclasses
-      end
-
     end
   end
 end
