@@ -163,7 +163,7 @@ module RailsAdmin
       statements = []
       values = []
       conditions = options[:conditions] || [""]
-      table_name = @abstract_model.model.table_name
+      table_name = @abstract_model.table_name
 
       @properties.select{|property| property[:type] == :string}.each do |property|
         statements << "(#{table_name}.#{property[:name]} LIKE ?)"
@@ -199,9 +199,9 @@ module RailsAdmin
 
     def get_attributes
       @attributes = params[@abstract_model.to_param] || {}
-      @attributes.each do |key, value|
+        @attributes.each do |key, value|
         # Deserialize the attribute if attribute is serialized
-        if @abstract_model.model.serialized_attributes.keys.include?(key)
+        if @abstract_model.keys.include?(key)
           @attributes[key] = YAML::load(value)
         end
         # Delete fields that are blank

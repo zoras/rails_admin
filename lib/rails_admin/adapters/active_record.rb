@@ -30,6 +30,10 @@ module RailsAdmin
       def keys
         model.serialized_attributes.keys
       end
+      
+      def table_name
+        model.table_name
+      end
 
       def count(options = {})
         model.count(options.reject{|key, value| [:sort, :sort_reverse].include?(key)})
