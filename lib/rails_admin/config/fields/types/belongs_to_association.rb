@@ -10,8 +10,6 @@ module RailsAdmin
 
           attr_reader :association
 
-          @column_width = 250
-
           def initialize(parent, name, properties, association)
             super(parent, name, properties)
             @association = association
@@ -21,25 +19,35 @@ module RailsAdmin
           register_instance_option(:formatted_value) do
             object = bindings[:object].send(association[:name])
             unless object.nil?
-              RailsAdmin::Config.model(object).list.with(:object => object).object_label
+              RailsAdmin::Config.model(object).with(:object => object).object_label
             else
               nil
             end
           end
 
-          def associated_collection
-            associated_model_config.abstract_model.all.map do |object|
-              [associated_model_config.list.with(:object => object).object_label, object.id]
-            end
+          register_instance_option(:partial) do
+            :form_filtering_select
+          end
+
+          register_instance_option(:render) do
+            bindings[:view].render :partial => partial.to_s, :locals => {:field => self, :form => bindings[:form] }
           end
 
           def associated_model_config
             @associated_model_config ||= RailsAdmin.config(association[:parent_model])
           end
 
+          def selected_id
+            bindings[:object].send(child_key)
+          end
+
           # Reader for field's value
           def value
             bindings[:object].send(name)
+          end
+          
+          def method_name
+            name.to_s
           end
         end
       end

@@ -2,6 +2,8 @@ require 'rails_admin/abstract_model'
 
 module RailsAdmin
   class ApplicationController < ::ApplicationController
+    newrelic_ignore if defined?(NewRelic)
+
     before_filter :_authenticate!
     before_filter :_authorize!
     before_filter :set_plugin_name
@@ -17,7 +19,7 @@ module RailsAdmin
     end
 
     def to_model_name(param)
-      parts = param.split("::")
+      parts = param.split("~")
       parts.map{|x| x == parts.last ? x.singularize.camelize : x.camelize}.join("::")
     end
 
@@ -46,6 +48,10 @@ module RailsAdmin
 
     def not_found
       render :file => Rails.root.join('public', '404.html'), :layout => false, :status => 404
+    end
+
+    def rails_admin_controller?
+      true
     end
   end
 end

@@ -5,9 +5,37 @@ require 'rails_admin/abstract_object'
 module RailsAdmin
   module Adapters
     module ActiveRecord
-
-      def self.can_handle_model(model)
-        model.is_a?(Class) && self.superclasses(model).include?(::ActiveRecord::Base)
+      def self.extended(abstract_model)
+        
+        # ActiveRecord does not handle has_one relationships the way it does for has_many, 
+        # and does not create any association_id and association_id= methods. 
+        # Added here for backward compatibility after a refactoring, but it does belong to ActiveRecord IMO.
+        # Support is hackish at best. Atomicity is respected for creation, but not while updating.
+        abstract_model.model.reflect_on_all_associations.select{|assoc| assoc.macro.to_s == 'has_one'}.each do |association|
+          abstract_model.model.send(:define_method, "#{association.name}_id") do
+            self.send(association.name).try(:id)
+          end
+          abstract_model.model.send(:define_method, "#{association.name}_id=") do |id|
+            association.klass.update_all({ association.primary_key_name => nil }, { association.primary_key_name => self.id }) if self.id
+            self.send(association.name.to_s + '=', associated = (id.blank? ? nil : association.klass.find_by_id(id)))
+          end
+        end
+        
+        abstract_model.model.send(:define_method, :rails_admin_default_object_label_method) do 
+          "#{self.class.to_s} ##{self.try :id}"
+        end
+      end
+            
+      def self.polymorphic_parents(name)
+        unless @polymorphic_parents
+          @polymorphic_parents = {}
+          RailsAdmin::AbstractModel.all.each do |abstract_model|
+            abstract_model.polymorphic_associations.each do |association|
+              (@polymorphic_parents[association[:options][:as].to_sym] ||= []) << abstract_model
+            end
+          end
+        end
+        @polymorphic_parents[name.to_sym]
       end
 
       def get(id)
@@ -16,15 +44,11 @@ module RailsAdmin
         else
           nil
         end
-      # TODO: ActiveRecord::Base.find_by_id will never raise RecordNotFound, will it?
-      rescue ActiveRecord::RecordNotFound
-        nil
       end
 
-      def get_bulk(ids)
-        model.find(ids)
-      rescue ActiveRecord::RecordNotFound
-        nil
+      def get_bulk(ids, scope = nil)
+        scope ||= model
+        scope.find_all_by_id(ids)
       end
 
       def keys
@@ -37,28 +61,33 @@ module RailsAdmin
 
       def count(options = {})
         model.count(options.reject{|key, value| [:sort, :sort_reverse].include?(key)})
+      def count(options = {}, scope = nil)
+        scope ||= model
+        scope.count(options.reject{|key, value| [:sort, :sort_reverse].include?(key)})
       end
 
-      def first(options = {})
-        model.first(merge_order(options))
+      def first(options = {}, scope = nil)
+        scope ||= model
+        scope.first(merge_order(options))
       end
 
-      def all(options = {})
-        model.all(merge_order(options))
+      def all(options = {}, scope = nil)
+        scope ||= model
+        scope.all(merge_order(options))
       end
 
-      def paginated(options = {})
+      def paginated(options = {}, scope = nil)
         page = options.delete(:page) || 1
         per_page = options.delete(:per_page) || RailsAdmin::Config::Sections::List.default_items_per_page
 
-        page_count = (count(options).to_f / per_page).ceil
+        page_count = (count(options, scope).to_f / per_page).ceil
 
         options.merge!({
           :limit => per_page,
           :offset => (page - 1) * per_page
         })
 
-        [page_count, all(options)]
+        [page_count, all(options, scope)]
       end
 
       def create(params = {})
@@ -69,8 +98,9 @@ module RailsAdmin
         RailsAdmin::AbstractObject.new(model.new)
       end
 
-      def destroy(ids)
-        model.destroy(ids)
+      def destroy(ids, scope = nil)
+        scope ||= model
+        scope.destroy_all(:id => ids)
       end
 
       def destroy_all!
@@ -104,16 +134,23 @@ module RailsAdmin
       end
 
       def associations
-        model.reflect_on_all_associations.select { |association| not association.options[:polymorphic] }.map do |association|
+        model.reflect_on_all_associations.map do |association|
           {
             :name => association.name,
-            :pretty_name => association.name.to_s.gsub('_', ' ').capitalize,
+            :pretty_name => association.name.to_s.tr('_', ' ').capitalize,
             :type => association.macro,
             :parent_model => association_parent_model_lookup(association),
             :parent_key => association_parent_key_lookup(association),
             :child_model => association_child_model_lookup(association),
             :child_key => association_child_key_lookup(association),
+            :options => association.options,
           }
+        end
+      end
+
+      def polymorphic_associations
+        (has_many_associations + has_one_associations).select do |association|
+          association[:options][:as]
         end
       end
 
@@ -121,7 +158,7 @@ module RailsAdmin
         model.columns.map do |property|
           {
             :name => property.name.to_sym,
-            :pretty_name => property.name.to_s.gsub('_', ' ').capitalize,
+            :pretty_name => property.name.to_s.tr('_', ' ').capitalize,
             :type => property.type,
             :length => property.limit,
             :nullable? => property.null,
@@ -138,6 +175,7 @@ module RailsAdmin
 
       def merge_order(options)
         @sort ||= options.delete(:sort) || "id"
+        @sort = (@sort.to_s.include?('.') ? @sort : "#{model.table_name}.#{@sort}")
         @sort_order ||= options.delete(:sort_reverse) ? "asc" : "desc"
         options.merge(:order => "#{@sort} #{@sort_order}")
       end
@@ -145,7 +183,11 @@ module RailsAdmin
       def association_parent_model_lookup(association)
         case association.macro
         when :belongs_to
-          association.klass
+          if association.options[:polymorphic]
+            RailsAdmin::Adapters::ActiveRecord.polymorphic_parents(association.name)
+          else
+            association.klass
+          end
         when :has_one, :has_many, :has_and_belongs_to_many
           association.active_record
         else
@@ -178,16 +220,6 @@ module RailsAdmin
           raise "Unknown association type: #{association.macro.inspect}"
         end
       end
-
-      def self.superclasses(klass)
-        superclasses = []
-        while klass
-          superclasses << klass.superclass if klass && klass.superclass
-          klass = klass.superclass
-        end
-        superclasses
-      end
-
     end
   end
 end

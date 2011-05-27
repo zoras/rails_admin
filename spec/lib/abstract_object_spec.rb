@@ -2,11 +2,11 @@ require 'spec_helper'
 
 describe "AbstractObject" do
   describe "proxy" do
-    let(:object) { mock("A mock") }
+    let(:object) { Object.new }
     let(:abstract_object) {  RailsAdmin::AbstractObject.new(object) }
 
     it "should act like a proxy" do
-      object.should_receive(:method_call).once
+      mock(object).method_call
 
       abstract_object.method_call
     end
@@ -39,11 +39,10 @@ describe "AbstractObject" do
     end
 
     describe "a record with protected attributes and has_one association" do
-      let(:draft) { Draft.create(:date => 1.week.ago, :round => 1, :pick => 1, :overall => 1, :team_id => -1, :player_id => -1) }
+      let(:draft) { Factory :draft }
 
       before do
-        object.attributes = { :name => name, :number => number, :position => position, :suspended => suspended, :team_id => nil }
-        object.associations = { :draft => draft.id }
+        object.attributes = { :name => name, :number => number, :position => position, :suspended => suspended, :team_id => nil, :draft_id => draft.id }
       end
 
       it "should create a Player with given attributes" do
@@ -63,12 +62,11 @@ describe "AbstractObject" do
       let(:league) { League.new }
       let(:object) { RailsAdmin::AbstractObject.new league }
       let(:name) { "Awesome League" }
-      let(:divisions) { [Division.create(:name => "D1", :league_id => -1), Division.create(:name => "D2", :league_id => -1)] }
-      let(:teams) { [Team.create(:name => "T1", :manager => "M1", :founded => 1, :wins => 1, :losses => 1, :win_percentage => 1, :league_id => -1, :division_id => -1), Team.create(:name => "T2", :manager => "M2", :founded => 1, :wins => 1, :losses => 1, :win_percentage => 1, :league_id => -1, :division_id => -1)] }
+      let(:teams) { [Factory(:team)] }
+      let(:divisions) { [Factory(:division), Factory(:division)] }
 
       before do
-        object.attributes = { :name  => name }
-        object.associations = { :teams => teams.map(&:id), :divisions => divisions }
+        object.attributes = { :name  => name, :division_ids => divisions.map(&:id) }
       end
 
       it "should create a League with given attributes and associations" do
@@ -76,7 +74,6 @@ describe "AbstractObject" do
         league.reload
         league.name.should == name
         league.divisions.should == divisions
-        league.teams.should == teams
       end
     end
   end
@@ -85,16 +82,15 @@ describe "AbstractObject" do
     describe "a record with protected attributes and has_one association" do
       let(:name) { "Stefan Koza" }
       let(:suspended) { true }
-      let(:player) { Player.create(:suspended => true, :number => 42, :name => name) }
+      let(:player) { Factory :player, :suspended => true, :name => name, :draft => Factory(:draft) }
       let(:object) { RailsAdmin::AbstractObject.new player }
-      let(:new_team) { Team.create(:name => "T1", :manager => "M1", :founded => 1, :wins => 1, :losses => 1, :win_percentage => 1, :league_id => -1, :division_id => -1) }
+      let(:new_team) { Factory :team }
       let(:new_suspended) { false }
       let(:new_draft) { nil }
       let(:new_number) { player.number + 29 }
 
       before do
-        object.attributes = { :number => new_number, :team_id => new_team.id, :suspended => new_suspended }
-        object.associations = { :draft => new_draft }
+        object.attributes = { :number => new_number, :team_id => new_team.id, :suspended => new_suspended, :draft_id => new_draft }
         object.save
       end
 
@@ -110,7 +106,7 @@ describe "AbstractObject" do
   end
 
   describe "destroy" do
-    let(:player) { Player.create(:name => "P1") }
+    let(:player) { Factory :player }
     let(:object) { RailsAdmin::AbstractObject.new player }
 
     before do
