@@ -5,6 +5,11 @@ require 'rails_admin/abstract_object'
 module RailsAdmin
   module Adapters
     module ActiveRecord
+
+      def self.can_handle_model(model)
+        model.is_a?(Class) && self.superclasses(model).include?(::ActiveRecord::Base)
+      end
+
       def self.extended(abstract_model)
         
         # ActiveRecord does not handle has_one relationships the way it does for has_many, 
@@ -59,8 +64,6 @@ module RailsAdmin
         model.table_name
       end
 
-      def count(options = {})
-        model.count(options.reject{|key, value| [:sort, :sort_reverse].include?(key)})
       def count(options = {}, scope = nil)
         scope ||= model
         scope.count(options.reject{|key, value| [:sort, :sort_reverse].include?(key)})
@@ -220,6 +223,16 @@ module RailsAdmin
           raise "Unknown association type: #{association.macro.inspect}"
         end
       end
+
+      def self.superclasses(klass)
+        superclasses = []
+        while klass
+          superclasses << klass.superclass if klass && klass.superclass
+          klass = klass.superclass
+        end
+        superclasses
+      end
+
     end
   end
 end
